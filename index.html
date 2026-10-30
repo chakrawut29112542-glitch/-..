@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ทะเบียนคุมค่าเล่าเรียนบุตร | ว 257</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>📚 ทะเบียนคุมค่าเล่าเรียนบุตร</h1>
+      <p>ระบบควบคุมการเบิกจ่ายตามหลักเกณฑ์และอัตราที่กำหนด</p>
+    </div>
+    <div class="top-actions">
+      <button class="btn light" onclick="exportExcel()">⬇ Export Excel</button>
+      <button class="btn" onclick="backupData()">สำรองข้อมูล</button>
+      <label class="btn light file-btn">นำเข้าข้อมูล
+        <input type="file" accept=".json" onchange="restoreData(event)">
+      </label>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="cards">
+      <div class="card"><span>ผู้มีสิทธิ</span><strong id="statRights">0</strong></div>
+      <div class="card"><span>บุตร</span><strong id="statChildren">0</strong></div>
+      <div class="card"><span>รายการเบิก</span><strong id="statClaims">0</strong></div>
+      <div class="card"><span>ยอดเบิกสะสม</span><strong id="statTotal">0 บาท</strong></div>
+      <div class="card danger"><span>เกินอัตรา</span><strong id="statOver">0</strong></div>
+    </section>
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="dashboard">ภาพรวม</button>
+      <button class="tab" data-tab="rights">ผู้มีสิทธิ</button>
+      <button class="tab" data-tab="children">บุตร</button>
+      <button class="tab" data-tab="claims">รายการเบิก</button>
+      <button class="tab" data-tab="rates">ตารางอัตรา</button>
+    </nav>
+
+    <section id="dashboard" class="panel active">
+      <div class="section-head">
+        <div><h2>ทะเบียนคุมรายการเบิก</h2><p>ระบบจะคำนวณยอดสะสมและตรวจสอบเพดานโดยอัตโนมัติ</p></div>
+        <button class="btn" onclick="openClaimModal()">＋ เพิ่มรายการเบิก</button>
+      </div>
+      <div class="toolbar">
+        <input id="globalSearch" placeholder="🔎 ค้นหาผู้มีสิทธิ / บุตร / โรงเรียน..." oninput="renderDashboard()">
+        <select id="statusFilter" onchange="renderDashboard()">
+          <option value="">ทุกสถานะ</option>
+          <option value="ปกติ">ปกติ</option>
+          <option value="ใกล้เต็ม">ใกล้เต็ม</option>
+          <option value="เกินอัตรา">เกินอัตรา</option>
+        </select>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>ผู้มีสิทธิ</th><th>บุตร</th><th>โรงเรียน</th><th>ปี/ภาค</th><th>อัตราสูงสุด</th><th>เบิกสะสม</th><th>คงเหลือ</th><th>สถานะ</th><th></th></tr></thead>
+        <tbody id="dashboardBody"></tbody>
+      </table></div>
+    </section>
+
+    <section id="rights" class="panel">
+      <div class="section-head"><div><h2>ทะเบียนผู้มีสิทธิ</h2><p>เพิ่ม แก้ไข หรือลบข้อมูลผู้มีสิทธิ</p></div><button class="btn" onclick="openRightModal()">＋ เพิ่มผู้มีสิทธิ</button></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>เลขที่</th><th>ชื่อ-สกุล</th><th>หน่วยงาน</th><th>ตำแหน่ง</th><th>จำนวนบุตร</th><th></th></tr></thead>
+        <tbody id="rightsBody"></tbody>
+      </table></div>
+    </section>
+
+    <section id="children" class="panel">
+      <div class="section-head"><div><h2>ทะเบียนบุตร</h2><p>กำหนดโรงเรียน ระดับชั้น และข้อมูลที่ใช้ควบคุมสิทธิ</p></div><button class="btn" onclick="openChildModal()">＋ เพิ่มบุตร</button></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>ผู้มีสิทธิ</th><th>ชื่อบุตร</th><th>โรงเรียน</th><th>ประเภทสถานศึกษา</th><th>ระดับ</th><th>ชั้น/หลักสูตร</th><th></th></tr></thead>
+        <tbody id="childrenBody"></tbody>
+      </table></div>
+    </section>
+
+    <section id="claims" class="panel">
+      <div class="section-head"><div><h2>รายการเบิก</h2><p>บันทึกยอดที่จ่ายจริงและยอดที่ขอเบิก ระบบจะตรวจเพดานให้</p></div><button class="btn" onclick="openClaimModal()">＋ เพิ่มรายการเบิก</button></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>วันที่</th><th>ผู้มีสิทธิ</th><th>บุตร</th><th>ปี/ภาค</th><th>จ่ายจริง</th><th>เบิกได้สูงสุดครั้งนี้</th><th>ขอเบิก</th><th>สถานะ</th><th></th></tr></thead>
+        <tbody id="claimsBody"></tbody>
+      </table></div>
+    </section>
+
+    <section id="rates" class="panel">
+      <div class="section-head"><div><h2>ตารางอัตรา</h2><p>อัตราเริ่มต้นตาม ว 257 และ ว 22 — สามารถแก้ไขให้ตรงกับฉบับที่หน่วยงานใช้งาน</p></div><button class="btn" onclick="openRateModal()">＋ เพิ่ม/แก้ไขอัตรา</button></div>
+      <div class="notice">⚠️ ระบบนี้เป็นเครื่องมือช่วยทะเบียนคุม ไม่ใช่การวินิจฉัยสิทธิแทนเจ้าหน้าที่ ควรตรวจหลักฐานและหนังสือเวียนฉบับจริงก่อนอนุมัติทุกครั้ง</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>ประเภท</th><th>ระดับ/หลักสูตร</th><th>สถานะอุดหนุน</th><th>สายวิชา</th><th>เพดาน</th><th>วิธีคำนวณ</th><th>อ้างอิง</th><th></th></tr></thead>
+        <tbody id="ratesBody"></tbody>
+      </table></div>
+    </section>
+  </main>
+
+  <div id="modal" class="modal">
+    <div class="modal-box">
+      <div class="modal-head"><h3 id="modalTitle"></h3><button onclick="closeModal()">✕</button></div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="rates.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
